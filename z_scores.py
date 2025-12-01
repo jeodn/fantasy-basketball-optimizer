@@ -6,7 +6,7 @@ import json
 # CONFIGURATION
 # -------------------------------------------------------------------------
 # Categories to exclude from the total score (e.g., ['TO', 'FG%'])
-PUNT_CATEGORIES = ["BLK", "REB"] 
+PUNT_CATEGORIES = [] 
 
 # Weights for each category (Default is 1.0). 
 # You can increase this to 2.0 to make a category count double.
