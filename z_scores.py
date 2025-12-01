@@ -6,7 +6,7 @@ import json
 # CONFIGURATION
 # -------------------------------------------------------------------------
 # Categories to exclude from the total score (e.g., ['TO', 'FG%'])
-PUNT_CATEGORIES = [] 
+PUNT_CATEGORIES = ["BLK", "TO"] 
 
 # Weights for each category (Default is 1.0). 
 # You can increase this to 2.0 to make a category count double.
@@ -158,6 +158,9 @@ def calculate_z_scores(df: pd.DataFrame, punt_cats=None, weights=None):
     z_score_cols_no_rawFG = z_score_cols
     z_score_cols_no_rawFG.remove("zFG%")
     z_score_cols_no_rawFG.remove("zFT%")
+
+    # round to 3 decimals
+    df = df.round(3)
 
     # 5. Sum Z-Scores for Total Value
     df['Total_Value'] = df[z_score_cols].sum(axis=1)
