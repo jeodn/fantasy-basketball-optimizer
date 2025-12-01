@@ -28,7 +28,7 @@ my_team = [
 ] 
 
 
-if __name__ == "__main__":
+def write_myteam_stats():
     with open("data_zscores.json") as f:
         player_z_json = json.load(f)   # data is a dict: { "203999": {...}, "1629027": {...}, ... }
 
@@ -37,9 +37,44 @@ if __name__ == "__main__":
     with open("data_myteam.json", "w") as f:
         json.dump(filtered, f, indent=4)
 
-    #player_df = get_players_dataframe()
-    #my_team_df = player_df[player_df["player_id"].isin(my_team)]
 
-    #export_player_df_as_json(MYTEAM_FILENAME, my_team_df)
+def write_myteam_stats_categorywise():
+    with open("data_myteam.json") as g:
+        myteam_z_json = json.load(g)   # data is a dict: { "203999": {...}, "1629027": {...}, ... }
 
-    #print(my_team_df)
+    categorywise_stats = {"TEAM_CATEGORY_STATS" : {
+        "name": "TEAM",
+        "FG%_Impact": 0.0,
+        "FT%_Impact": 0.0,
+        "zFG%": 0.0,
+        "zFT%": 0.0,
+        "z3PTM": 0.0,
+        "zPTS": 0.0,
+        "zREB": 0.0,
+        "zAST": 0.0,
+        "zST": 0.0,
+        "zBLK": 0.0,
+        "zTO": 0.0,
+        "Total_Value": 0.0
+        }
+    }
+
+
+    for pid, stats in myteam_z_json.items():
+        for statname, statval in stats.items():
+            if statname == "name":
+                continue
+
+            categorywise_stats["TEAM_CATEGORY_STATS"][statname] += statval
+            categorywise_stats["TEAM_CATEGORY_STATS"][statname] = round(categorywise_stats["TEAM_CATEGORY_STATS"][statname], 3)
+
+
+    with open("data_myteam_cumulative.json", "w") as f:
+        json.dump(categorywise_stats, f, indent=4)
+
+
+if __name__ == "__main__":
+     write_myteam_stats()
+     write_myteam_stats_categorywise()
+
+
