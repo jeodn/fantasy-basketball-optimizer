@@ -1,13 +1,9 @@
 import pandas as pd
 import numpy as np
 import json
+from .util import DATA_DIR, get_players_dataframe, export_player_df_as_json
 
-from util import get_players_dataframe, export_player_df_as_json
-
-
-MYTEAM_FILENAME="data_myteam.json"
-
-
+MYTEAM_FILENAME = DATA_DIR / "data_myteam.json"
 
 my_team = [
     1628973,
@@ -29,17 +25,24 @@ my_team = [
 
 
 def write_myteam_stats():
-    with open("data_zscores.json") as f:
+    with open(DATA_DIR / "data_zscores.json") as f:
         player_z_json = json.load(f)   # data is a dict: { "203999": {...}, "1629027": {...}, ... }
 
     filtered = {pid: stats for pid, stats in player_z_json.items() if int(pid) in my_team}
 
-    with open("data_myteam.json", "w") as f:
+    with open(MYTEAM_FILENAME, "w") as f:
         json.dump(filtered, f, indent=4)
 
+def write_my_team_stats_toCSV():
+    df = pd.read_csv(DATA_DIR / "fantasy_rankings.csv")
+
+    # must be a SET
+    df = df[df["player_id"].isin(set(my_team))]
+
+    df.to_csv(DATA_DIR / "fantasy_rankings_myteam.csv", index=False)
 
 def write_myteam_stats_categorywise():
-    with open("data_myteam.json") as g:
+    with open(MYTEAM_FILENAME) as g:
         myteam_z_json = json.load(g)   # data is a dict: { "203999": {...}, "1629027": {...}, ... }
 
     categorywise_stats = {"TEAM_CATEGORY_STATS" : {
@@ -69,12 +72,16 @@ def write_myteam_stats_categorywise():
             categorywise_stats["TEAM_CATEGORY_STATS"][statname] = round(categorywise_stats["TEAM_CATEGORY_STATS"][statname], 3)
 
 
-    with open("data_myteam_cumulative.json", "w") as f:
+    with open(DATA_DIR / "data_myteam_cumulative.json", "w") as f:
         json.dump(categorywise_stats, f, indent=4)
 
 
-if __name__ == "__main__":
+def main():
      write_myteam_stats()
      write_myteam_stats_categorywise()
+     write_my_team_stats_toCSV()
+
+if __name__ == "__main__":
+     main()
 
 

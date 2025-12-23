@@ -4,6 +4,7 @@ from nba_api.stats.endpoints import leaguedashplayerstats, commonplayerinfo
 from nba_api.stats.static import players
 
 import json
+from .util import DATA_DIR
 
 # --- CONFIGURATION ---
 CURRENT_SEASON = '2025-26'
@@ -127,21 +128,7 @@ def main():
             player_obj['stats_last_10'] = process_row(l10_dict[p_id])
 
         # --- Handle Positions ---
-        # Note: The 'players' endpoint doesn't give position. 
-        # We rely on the stats endpoint or use commonplayerinfo if strictly needed.
-        # However, commonplayerinfo requires a loop (slow). 
-        # For now, we look at the Current Season dataframe for position (if they have played).
-        if p_id in curr_dict:
-            # NBA API often returns "G", "F", "C", "G-F". 
-            # We split "G-F" into ["G", "F"]
-            pos_raw = curr_dict[p_id].get('PLAYER_POSITION', '') # API field name check
-            # Note: LeagueDashPlayerStats sometimes doesn't include Position col depending on arguments.
-            # If missing, you might need a separate lookup. 
-            # Often it is strictly safer to leave blank or assume generic if not provided.
-            # Let's check typical keys: 'TEAM_ID', 'TEAM_ABBREVIATION', 'GP', 'MIN', etc.
-            # Usually LeagueDash includes specific columns. 
-            # For this script, we will initialize empty and let you fill via a deeper dive if needed.
-            pass
+        pass
 
         final_data[player_obj.get("player_id")] = (player_obj)
 
@@ -156,5 +143,5 @@ def main():
 if __name__ == "__main__":
     data = main()
 
-    with open('data.json', 'w') as f:
+    with open(DATA_DIR / 'data.json', 'w') as f:
         json.dump(data, f)

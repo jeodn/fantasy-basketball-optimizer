@@ -1,18 +1,27 @@
 import pandas as pd
 import numpy as np
 import json
+from pathlib import Path
 
+# -------------------------------------------------------------------------
+# PATH CONFIGURATION
+# -------------------------------------------------------------------------
+# Get the root directory (parent of 'scripts')
+ROOT_DIR = Path(__file__).parent.parent
+DATA_DIR = ROOT_DIR / 'data'
 
+# Ensure data directory exists
+DATA_DIR.mkdir(exist_ok=True)
 
 # The specific stats object to use from your JSON (e.g., 'stats_prev_season', 'stats_last_10')
 STATS_SOURCE = 'stats_curr_season'
 
-DATA_SOURCE_FILENAME = 'data.json'
+DATA_SOURCE_FILENAME = DATA_DIR / 'data.json'
 
 # -------------------------------------------------------------------------
 # LOAD DATA (From your prompt)
 # -------------------------------------------------------------------------
-def load_player_data(data_filename: str) -> str:
+def load_player_data(data_filename: Path = DATA_SOURCE_FILENAME) -> str:
     json_data = ""
     try:
         # Load player data from an external JSON file
@@ -71,7 +80,7 @@ def get_players_dataframe(data_source_filename=DATA_SOURCE_FILENAME) -> pd.DataF
     return process_data(load_player_data(data_source_filename))
 
 
-def export_player_df_as_json(output_filename: str, export_df: pd.DataFrame) -> None:
+def export_player_df_as_json(output_filename: Path, export_df: pd.DataFrame) -> None:
     if not export_df.empty:
         json_df = export_df.copy()
         
