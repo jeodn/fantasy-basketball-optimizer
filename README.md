@@ -15,6 +15,18 @@ It calculates category-wise z-scores, predicts daily performance, and helps eval
     - Analyzes **Individual Player Stats** (Z-Scores & Raw Stats) to suggest optimal benching strategies for specific categories (e.g., preserving FG%).
 - **Player Evaluation**: Compare free agents to your worst players.
 
+## Gallery
+<img width="1633" height="779" alt="image" src="https://github.com/user-attachments/assets/f93d1417-fcb1-4bc6-b1fd-d375b6a47235" />
+
+<img width="1464" height="903" alt="image" src="https://github.com/user-attachments/assets/041baa6e-e435-4ffb-998d-93c5ded2c1cc" />
+
+<img width="1413" height="1269" alt="image" src="https://github.com/user-attachments/assets/9539eeb5-880c-4eff-a8ed-c65b921c7979" />
+
+<img width="1437" height="785" alt="image" src="https://github.com/user-attachments/assets/b41661bb-a98e-4b56-a276-1d7606721eab" />
+
+<img width="1338" height="893" alt="image" src="https://github.com/user-attachments/assets/cde53cd6-a079-48b9-b946-e6a333acce9c" />
+
+
 ## Configuration
 
 To customize your rosters:
