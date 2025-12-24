@@ -62,7 +62,8 @@ def process_data(json_input, stats_source='stats_curr_season') -> pd.DataFrame:
             'ST': stats.get('ST', 0),
             'BLK': stats.get('BLK', 0),
             'TO': stats.get('TO', 0),
-            'GP': stats.get('GP', 0)
+            'GP': stats.get('GP', 0),
+            'MIN': stats.get('MIN', 0.0)
         }
         
         # Calculate raw percentages for display (handling div by zero)
