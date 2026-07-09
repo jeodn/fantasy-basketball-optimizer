@@ -1,11 +1,7 @@
 # Fantasy Basketball Advisor
 
-This project (formerly Fantasy Basketball Optimizer) acts as an advisor to optimize your fantasy basketball team.
+This project (formerly Fantasy Basketball Optimizer) acts as an advisor for optimizing your fantasy basketball team.
 It calculates category-wise z-scores, predicts daily performance, and helps evaluate free agents.
-
-**Current Status**:
-- Login integration (Not Started)
-- AI Suggestions (Implemented via Google Gemini)
 
 
 ## Features
