@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
-from scripts import z_scores, util, generate_roster
+from app.services import ranking_service
+from app.config import DATA_DIR, config
+from app.repository import file_repository as file_repo
 import json
 from google import genai
 import os
@@ -15,8 +17,8 @@ st.set_page_config(
 # Load data function
 @st.cache_data
 def load_data():
-    json_data = util.load_player_data(util.DATA_SOURCE_FILENAME)
-    df = z_scores.generate_z_scores_df(json_data)
+    raw_data = file_repo.load_raw_player_data()
+    df = ranking_service.generate_z_scores_df(raw_data)
     return df
 
 def get_gemini_response(api_key, context, prompt):
@@ -57,7 +59,7 @@ def main():
     st.header("My Team")
     
     # Filter for my team
-    my_team_ids = set(generate_roster.my_team)
+    my_team_ids = set(config.roster.my_team)
     my_team_df = df[df['player_id'].astype(int).isin(my_team_ids)]
     
     # Rearrange columns to put 'name' first if present
@@ -70,7 +72,7 @@ def main():
         st.subheader("Team Roster")
         st.dataframe(
             my_team_df, 
-            use_container_width=True, 
+            width='stretch', 
             hide_index=True,
             column_config={
                 "name": st.column_config.TextColumn(
@@ -86,9 +88,9 @@ def main():
         
         st.subheader("Team Totals (Z-Scores)")
         # Transpose for better display
-        st.dataframe(team_totals.to_frame(name="Total Value").T, use_container_width=True, hide_index=True)
+        st.dataframe(team_totals.to_frame(name="Total Value").T, width='stretch', hide_index=True)
     else:
-        st.warning("No players found for 'My Team'. Check generate_roster.py.")
+        st.warning("No players found for 'My Team'. Check roster.my_team in config.yaml.")
 
     # Section 1.5: Daily Projections & Matchup
     st.header("Daily Projections (Today)")
@@ -105,7 +107,7 @@ def main():
     matchup_df_display = pd.DataFrame()
     
     # Load My Team
-    daily_proj_path = util.DATA_DIR / 'daily_projections_myteam.json'
+    daily_proj_path = DATA_DIR / 'daily_projections_myteam.json'
     if daily_proj_path.exists():
         try:
             with open(daily_proj_path, 'r') as f:
@@ -132,7 +134,7 @@ def main():
             st.error(f"Error loading my team data: {e}")
 
     # Load Matchup Team
-    matchup_proj_path = util.DATA_DIR / 'daily_projections_matchup.json'
+    matchup_proj_path = DATA_DIR / 'daily_projections_matchup.json'
     if matchup_proj_path.exists():
         try:
             with open(matchup_proj_path, 'r') as f:
@@ -166,7 +168,7 @@ def main():
     with col_my:
         st.subheader("My Team")
         if not my_df_display.empty:
-            st.dataframe(my_df_display, use_container_width=True, hide_index=True, column_config={"name": st.column_config.TextColumn("Player", pinned=True)})
+            st.dataframe(my_df_display, width='stretch', hide_index=True, column_config={"name": st.column_config.TextColumn("Player", pinned=True)})
             st.write(f"**Total Value:** {my_daily_totals.get('Total_Value', 0):.2f}")
         else:
             st.info("No projections found. Run 'python main.py predict'.")
@@ -175,7 +177,7 @@ def main():
     with col_matchup:
         st.subheader("Matchup Team")
         if not matchup_df_display.empty:
-            st.dataframe(matchup_df_display, use_container_width=True, hide_index=True, column_config={"name": st.column_config.TextColumn("Player", pinned=True)})
+            st.dataframe(matchup_df_display, width='stretch', hide_index=True, column_config={"name": st.column_config.TextColumn("Player", pinned=True)})
             st.write(f"**Total Value:** {matchup_daily_totals.get('Total_Value', 0):.2f}")
         else:
             st.info("No matchup data found.")
@@ -199,7 +201,7 @@ def main():
                 
             comp_data[stat] = f"{diff:+.2f}"
             
-        st.dataframe(pd.DataFrame([comp_data]), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame([comp_data]), width='stretch', hide_index=True)
 
     # --- AI Assistant ---
     st.header("Fantasy Assistant")
@@ -251,7 +253,7 @@ def main():
 
     st.dataframe(
         league_display_df, 
-        use_container_width=True, 
+        width='stretch', 
         hide_index=True,
         column_config={
             "name": st.column_config.TextColumn(
@@ -290,7 +292,7 @@ def main():
         # Let's show the columns present in the dataframe.
         
         comp_df = df[df['name'].isin([player1_name, player2_name])].set_index('name').T
-        st.dataframe(comp_df, use_container_width=True)
+        st.dataframe(comp_df, width='stretch')
 
 if __name__ == "__main__":
     main()

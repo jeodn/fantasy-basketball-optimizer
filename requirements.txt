@@ -4,4 +4,4 @@ nba_api
 streamlit
 google-genai
 tabulate
-
+pyyaml

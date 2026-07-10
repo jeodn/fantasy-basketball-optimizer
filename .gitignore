@@ -1,2 +1,61 @@
-fantasy_rankings.csv
-data*.json
+# ===========================================================================
+# Python
+# ===========================================================================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ===========================================================================
+# Virtual Environments
+# ===========================================================================
+.venv/
+venv/
+env/
+.env
+
+# ===========================================================================
+# IDE / Editor
+# ===========================================================================
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+
+# ===========================================================================
+# Data files (generated pipeline outputs — never commit these)
+# ===========================================================================
+data/
+data/data.json
+data/data_zscores.json
+data/data_myteam.json
+data/data_matchup.json
+data/data_myteam_cumulative.json
+data/data_top_n_replacements.json
+data/daily_projections.json
+data/daily_projections_myteam.json
+data/daily_projections_matchup.json
+data/fantasy_rankings.csv
+data/fantasy_rankings_myteam.csv
+data/team_map_cache.json
+
+# injuries.json is user-maintained config — keep it committed
+!data/injuries.json
+
+# ===========================================================================
+# Streamlit
+# ===========================================================================
+.streamlit/secrets.toml
+
+# ===========================================================================
+# OS
+# ===========================================================================
+.DS_Store
+Thumbs.db
+desktop.ini

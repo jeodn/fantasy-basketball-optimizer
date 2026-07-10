@@ -1,0 +1,65 @@
+season:
+  current: "2025-26"
+  previous: "2024-25"
+
+scoring:
+  # Which stat window to use for z-score calculations.
+  # Options: stats_curr_season | stats_prev_season | stats_last_10
+  stats_source: "stats_curr_season"
+
+  # Categories to exclude from total score (e.g. punt_categories: [TO, FT%])
+  punt_categories: []
+
+  # Multiplier for each category. Default is 1.0.
+  # Increase to make a category count more in the overall ranking.
+  category_weights:
+    "FG%": 1.5
+    "FT%": 1.0
+    "3PTM": 1.0
+    "PTS": 0.8
+    "REB": 1.0
+    "AST": 1.2
+    "ST": 1.0
+    "BLK": 1.0
+    "TO": 1.0
+
+roster:
+  # Player IDs for your fantasy team.
+  # Update these each week to reflect your current roster.
+  my_team:
+    - 1628973
+    - 1631097
+    - 1631170
+    - 1630530
+    - 1631096
+    - 203897
+    - 203999
+    - 1629675
+    - 1641717
+    - 1641750
+    - 1630559
+    - 203468
+    - 1630200
+    - 202331
+    - 203932
+
+  # Player IDs for your current matchup opponent.
+  matchup_team:
+    - 1628378  # Donovan Mitchell
+    - 1627742  # Brandon Ingram
+    - 1641709  # Ausar Thompson
+    - 1630183  # Jaden McDaniels
+    - 1630578  # Alperen Sengun
+    - 1630217  # Desmond Bane
+    - 1641705  # Victor Wembanyama
+    - 1631109  # Mark Williams
+    - 1630170  # Devin Vassell
+    - 1631157  # Ryan Rollins
+    - 202710   # Jimmy Butler
+    - 1629674  # Neemias Queta
+    - 1629632  # Coby White
+    - 1630591  # Jalen Suggs
+
+  # Default player ID to evaluate when running `python main.py evaluate`.
+  # Can be overridden with: python main.py evaluate --player <ID>
+  drop_candidate: 1629675
