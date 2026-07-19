@@ -1,15 +1,11 @@
 # Fantasy Basketball Advisor
 
-This project (formerly Fantasy Basketball Optimizer) acts as an advisor for optimizing your fantasy basketball team.
-It calculates category-wise z-scores, predicts daily performance, and helps evaluate free agents.
-
+This project acts as an advisor for optimizing your fantasy basketball team by calculating category-wise scores, predicting daily performance, and evaluating replacements.
 
 ## Features
 - **Daily Projections & Comparison**: View side-by-side daily stat projections for "My Team" vs. "Matchup Team".
 - **AI Fantasy Assistant**: Chat with a Gemini-powered AI that analyzes your daily matchup.
-    - Provides advice based on **Overall Team Totals**.
-    - Analyzes **Individual Player Stats** (Z-Scores & Raw Stats) to suggest optimal benching strategies for specific categories (e.g., preserving FG%).
-- **Player Evaluation**: Compare free agents to your worst players.
+- **Player Evaluation**: Compare replacement candidates (e.g. free agents) to a specific roster drop candidate.
 
 ## Gallery
 <img width="1633" height="779" alt="image" src="https://github.com/user-attachments/assets/f93d1417-fcb1-4bc6-b1fd-d375b6a47235" />
@@ -22,60 +18,44 @@ It calculates category-wise z-scores, predicts daily performance, and helps eval
 
 <img width="1338" height="893" alt="image" src="https://github.com/user-attachments/assets/cde53cd6-a079-48b9-b946-e6a333acce9c" />
 
+## Architecture
+
+The project code is separated into modular domains inside the `app/` directory:
+- **`app/domain/`**: Strongly-typed model definitions (`Player`, `PlayerPool`, `PlayerStats`, `ScoredPool`, `RosterSnapshot`) and schema constants. No I/O or math.
+- **`app/ingestion/`**: Handles data fetching, transformation, and projection (e.g., minute redistribution for active players to account for injuries).
+- **`app/analytics/`**: Core mathematical calculations. Supports pluggable `ScoringStrategy` systems (e.g., standard `ZScoreStrategy` or future diversification-adjusted scoring) and replacement evaluations.
+- **`app/repository/`**: Layer-agnostic I/O primitives (`file_repository.py` and `nba_api_repository.py`).
+- **`app/pipeline/`**: CLI orchestrators linking ingestion, analytics, and I/O together.
 
 ## Configuration
 
-To customize your rosters:
-1.  Open `scripts/generate_roster.py`.
-2.  Update the `my_team` list with your player IDs.
-3.  Update the `matchup_team` list with your opponent's player IDs.
+Customize rosters, scoring parameters, and settings in `config.yaml`:
+- **`roster`**: Configures `my_team` (list of player IDs), `matchup_team` (list of player IDs), and default `drop_candidate` (player ID).
+- **`scoring`**: Configures `stats_source`, `punt_categories`, and `category_weights`.
+- **`season`**: Set `current` and `previous` NBA season identifiers (e.g. `2025-26`).
 
-To manage injuries:
-1.  Open `data/injuries.json`.
-2.  Add players with `"status": "OUT"` to exclude them from daily projections.
+Manage injuries manually:
+- Set `"status": "OUT"` on players in `data/injuries.json` to exclude them from daily projections.
 
+## Setup & Running
 
-## Setup
+1. **Install Dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-1.  **Install Dependencies**:
-    ```bash
-    pip install -r requirements.txt
-    ```
+2. **Run Pipeline Command**:
+   ```bash
+   python main.py [command] [--player PLAYER_ID]
+   ```
+   - `pull`: Fetches raw NBA API stats -> `data/data.json`.
+   - `rank`: Calculates category z-scores for all players -> `data/data_zscores.json`, `data/fantasy_rankings.csv`.
+   - `roster`: Slices statistics for your teams -> `data/data_myteam.json`, `data/data_matchup.json`, etc.
+   - `evaluate`: Ranks replacement options against a drop candidate -> `data/data_top_n_replacements.json`. Override the target using `--player <ID>`.
+   - `predict`: Builds injury-adjusted projections -> `data/daily_projections*.json`.
+   - `all`: Runs `pull` -> `rank` -> `roster` -> `evaluate` in sequence.
 
-## Usage
-
-The project is orchestrated by `main.py`. Run the script with one of the following commands:
-
-```bash
-python main.py [command]
-```
-
-### Available Commands
-
-*   `pull`: **Fetch Data**. Pulls the latest player statistics from the NBA API.
-    *   *Output*: `data/data.json`
-*   `rank`: **Calculate Rankings**. Computes z-scores for all players based on league averages.
-    *   *Output*: `data/data_zscores.json`, `data/fantasy_rankings.csv`
-*   `roster`: **Generate Roster Stats**. Filters the ranked data for your specific team (defined in `scripts/generate_roster.py`).
-    *   *Output*: `data/data_myteam.json`, `data/data_myteam_cumulative.json`
-*   `evaluate`: **Evaluate Player Value**. Calculates the "Value Added" of top free agents compared to a specific drop candidate on your roster.
-    *   *Output*: `data/data_top_n_replacements.json`
-*   `predict`: **Daily Projections**. Predicts fantasy value for today's games, accounting for injuries (defined in `data/injuries.json`) and minute redistribution.
-    *   *Output*: `data/daily_projections.json`, `data/daily_projections_myteam.json`, `data/daily_projections_matchup.json`
-*   `all`: **Run All**. Executes the entire pipeline in order: `pull` -> `rank` -> `roster` -> `evaluate`.
-
-## Visualization
-
-To view your team stats and daily projections in a web interface:
-```bash
-streamlit run streamlit_app.py
-```
-*   **Daily Projections**: Ensure you have run `python main.py predict` first to generate the latest daily data.
-*   **AI Assistant**: You will need a valid Google Gemini API Key to use the chatbox feature (input in the sidebar).
-
-
-## Project Structure
-
-*   `scripts/`: Contains the logic for fetching data, calculating scores, and managing rosters.
-*   `data/`: Stores all input and output data files (JSON/CSV).
-*   `main.py`: The entry point for the application.
+3. **Launch Streamlit Dashboard**:
+   ```bash
+   streamlit run streamlit_app.py
+   ```
