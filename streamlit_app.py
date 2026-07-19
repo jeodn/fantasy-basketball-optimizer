@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
-from app.services import ranking_service
+from app.ingestion import player_ingestion
+from app.analytics.scoring.z_score import ZScoreStrategy
 from app.config import DATA_DIR, config
 from app.repository import file_repository as file_repo
 import json
@@ -17,9 +18,13 @@ st.set_page_config(
 # Load data function
 @st.cache_data
 def load_data():
-    raw_data = file_repo.load_raw_player_data()
-    df = ranking_service.generate_z_scores_df(raw_data)
-    return df
+    pool = player_ingestion.load_pool_from_file(DATA_DIR / "data.json")
+    strategy = ZScoreStrategy(
+        weights=config.scoring.category_weights,
+        punt_categories=config.scoring.punt_categories,
+        stats_source=config.scoring.stats_source,
+    )
+    return strategy.score(pool).to_dataframe()
 
 def get_gemini_response(api_key, context, prompt):
     try:

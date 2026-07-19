@@ -1,15 +1,16 @@
 """
 app/repository/file_repository.py
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-All file-system I/O is centralised here.
-Services call these functions — they never open files themselves.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Generic file I/O primitives. This layer knows nothing about the domain —
+it only reads and writes bytes. Path knowledge and domain semantics belong
+in the pipeline commands that call these functions.
 """
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, Optional
 
 import pandas as pd
 
@@ -17,20 +18,37 @@ from app.config import DATA_DIR
 
 
 # ---------------------------------------------------------------------------
-# Generic helpers
+# Generic primitives
 # ---------------------------------------------------------------------------
 
+def load_json(path: Path) -> dict:
+    """
+    Load and parse a JSON file.
+
+    :raises FileNotFoundError: if *path* does not exist.
+    """
+    if not path.exists():
+        raise FileNotFoundError(f"File not found: {path}")
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
 def save_json(path: Path, data: Any, indent: int = 4) -> None:
-    """Serialize *data* to *path* as JSON."""
+    """Serialise *data* to *path* as JSON."""
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=indent, ensure_ascii=False)
     print(f"  Saved → {path}")
 
 
-def save_dataframe_as_json(path: Path, df: pd.DataFrame, index_col: str = "player_id") -> None:
+def save_dataframe_as_json(
+    path: Path,
+    df: pd.DataFrame,
+    index_col: str = "player_id",
+) -> None:
     """
     Write a DataFrame to JSON keyed by *index_col*.
-    The resulting file has the shape: {"<player_id>": {col: val, ...}, ...}
+
+    Output shape: ``{ "<player_id>": { col: val, … }, … }``
     """
     if df.empty:
         return
@@ -48,86 +66,23 @@ def save_csv(path: Path, df: pd.DataFrame, index: bool = False) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Domain-specific loaders
+# Cache helpers (path-aware by necessity — acceptable exception)
 # ---------------------------------------------------------------------------
 
-def load_raw_player_data() -> Dict:
+def load_team_map_cache() -> Optional[Dict[int, int]]:
     """
-    Load the primary data file (data/data.json).
+    Load the cached player→team map.
 
-    :returns: Parsed dict keyed by player_id string.
-    :raises FileNotFoundError: if data.json has not been generated yet.
-    """
-    path = DATA_DIR / "data.json"
-    if not path.exists():
-        raise FileNotFoundError(
-            f"{path} not found. Run `python main.py pull` first."
-        )
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def load_z_scores() -> Dict:
-    """
-    Load the z-score ranked data (data/data_zscores.json).
-
-    :returns: Parsed dict keyed by player_id string.
-    :raises FileNotFoundError: if the file has not been generated yet.
-    """
-    path = DATA_DIR / "data_zscores.json"
-    if not path.exists():
-        raise FileNotFoundError(
-            f"{path} not found. Run `python main.py rank` first."
-        )
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def load_my_team_z_scores() -> Dict:
-    """
-    Load z-scores filtered to the user's roster (data/data_myteam.json).
-
-    :returns: Parsed dict keyed by player_id string.
-    :raises FileNotFoundError: if the file has not been generated yet.
-    """
-    path = DATA_DIR / "data_myteam.json"
-    if not path.exists():
-        raise FileNotFoundError(
-            f"{path} not found. Run `python main.py roster` first."
-        )
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def load_injuries() -> Set[int]:
-    """
-    Load the manual injury list (data/injuries.json).
-
-    :returns: Set of player IDs with status == "OUT". Empty set if file missing.
-    """
-    path = DATA_DIR / "injuries.json"
-    if not path.exists():
-        return set()
-    with open(path, "r", encoding="utf-8") as f:
-        injuries = json.load(f)
-    return {int(p["id"]) for p in injuries if p.get("status") == "OUT"}
-
-
-def load_team_map_cache() -> Dict[int, int] | None:
-    """
-    Load the cached player→team map (data/team_map_cache.json).
-
-    :returns: Dict {player_id: team_id}, or None if no cache file exists.
+    :returns: ``{player_id: team_id}`` dict, or ``None`` if no cache exists.
     """
     path = DATA_DIR / "team_map_cache.json"
     if not path.exists():
         return None
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, "r") as f:
         raw = json.load(f)
     return {int(k): int(v) for k, v in raw.items()}
 
 
 def save_team_map_cache(team_map: Dict[int, int]) -> None:
-    """Persist the player→team map to disk for reuse."""
-    path = DATA_DIR / "team_map_cache.json"
-    save_json(path, team_map)
+    """Persist the player→team map to the cache file."""
+    save_json(DATA_DIR / "team_map_cache.json", team_map)
