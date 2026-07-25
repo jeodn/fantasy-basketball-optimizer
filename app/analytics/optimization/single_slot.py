@@ -5,12 +5,16 @@ Single-Slot (Coordinate Descent / Greedy Local Search) OptimizationStrategy.
 
 Evaluates one roster slot at a time while holding all other players fixed.
 Optimizes for categories won against category target thresholds (h2h opponent stat line
-or median threshold) rather than total z-score sum.
+or median threshold) rather than total z-score sum. Uses pandas and numpy for vectorized
+stat aggregation and evaluation.
 """
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
+
+import numpy as np
+import pandas as pd
 
 from app.analytics.optimization.base import OptimizationStrategy
 from app.domain.optimization import OptimizationResult
@@ -25,7 +29,7 @@ class SingleSlotOptimizationStrategy(OptimizationStrategy):
     Greedy coordinate descent optimization for fantasy basketball roster slots.
 
     Evaluates replacing each player on the current roster with candidates from the available pool
-    one slot at a time. Candidates are evaluated by counting categories won against target thresholds.
+    one slot at a time using vectorized pandas/numpy matrix operations.
     """
 
     def __init__(
@@ -67,8 +71,6 @@ class SingleSlotOptimizationStrategy(OptimizationStrategy):
         self.tiebreaker = tiebreaker
         self.eps = eps
 
-
-
     def optimize(
         self,
         candidate_pool: ScoredPool,
@@ -94,35 +96,42 @@ class SingleSlotOptimizationStrategy(OptimizationStrategy):
             if sp.player.player_id not in roster_player_ids
         ]
 
-        # Determine active category names
+        # Active categories
         first_player = roster_players[0]
         all_categories = list(first_player.category_scores.scores.keys())
-        active_categories = [c for c in all_categories if c not in self.punt_categories]
+        active_categories: List[str] = [c for c in all_categories if c not in self.punt_categories]
 
-        def _sum_stats(players: List[ScoredPlayer]) -> Dict[str, float]:
-            totals: Dict[str, float] = {cat: 0.0 for cat in active_categories}
-            for p in players:
-                for cat in active_categories:
-                    totals[cat] += p.category_scores.scores.get(cat, 0.0)
-            return totals
+        # Build category threshold numpy vector (shape: N_categories,)
+        thresh_vec = np.array([self.target_thresholds.get(c, 0.0) for c in active_categories], dtype=float)
 
-        def _eval_totals(totals: Dict[str, float]) -> tuple[int, float, float]:
-            won = 0
-            margin_sum = 0.0
-            total_z = 0.0
-            for cat in active_categories:
-                val = totals[cat]
-                thresh = self.target_thresholds.get(cat, 0.0)
-                diff = val - thresh
-                if val >= thresh - self.eps:
-                    won += 1
-                margin_sum += diff
-                total_z += val
-            return won, margin_sum, total_z
+        def _player_to_series(sp: ScoredPlayer) -> pd.Series:
+            return pd.Series(
+                [sp.category_scores.scores.get(c, 0.0) for c in active_categories],
+                index=active_categories,
+            )
 
+        def _sum_roster_to_series(players: List[ScoredPlayer]) -> pd.Series:
+            if not players:
+                return pd.Series(0.0, index=active_categories)
+            df = pd.DataFrame([_player_to_series(p) for p in players])
+            return df.sum(axis=0)
 
-        initial_totals = _sum_stats(roster_players)
-        init_won, init_margin, init_z = _eval_totals(initial_totals)
+        def _eval_matrix(matrix: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+            """
+            Vectorized category score evaluation for a 2D matrix of shape (N, C).
+            Returns (categories_won, margin_sum, total_zscore) arrays of length N.
+            """
+            wins = (matrix >= (thresh_vec - self.eps)).sum(axis=1)
+            margins = (matrix - thresh_vec).sum(axis=1)
+            total_z = matrix.sum(axis=1)
+            return wins, margins, total_z
+
+        # Compute initial roster baseline
+        initial_series = _sum_roster_to_series(roster_players)
+        init_wins_arr, init_margins_arr, init_z_arr = _eval_matrix(initial_series.values.reshape(1, -1))
+        init_won = int(init_wins_arr[0])
+        init_margin = float(init_margins_arr[0])
+        init_z = float(init_z_arr[0])
 
         current_roster_list: List[ScoredPlayer] = list(roster_players)
         swap_history: List[Dict[str, Any]] = []
@@ -131,40 +140,43 @@ class SingleSlotOptimizationStrategy(OptimizationStrategy):
             for k in range(len(current_roster_list)):
                 incumbent = current_roster_list[k]
                 others = current_roster_list[:k] + current_roster_list[k + 1:]
-                baseline_totals = _sum_stats(others)
+                baseline_series = _sum_roster_to_series(others)
 
-                incumbent_totals = {
-                    c: baseline_totals[c] + incumbent.category_scores.scores.get(c, 0.0)
-                    for c in active_categories
-                }
-                inc_won, inc_margin, inc_z = _eval_totals(incumbent_totals)
+                incumbent_series = baseline_series + _player_to_series(incumbent)
+                inc_wins_arr, inc_margins_arr, inc_z_arr = _eval_matrix(incumbent_series.values.reshape(1, -1))
+                inc_won = int(inc_wins_arr[0])
+                inc_margin = float(inc_margins_arr[0])
+                inc_z = float(inc_z_arr[0])
 
                 best_cand = incumbent
                 best_won = inc_won
                 best_margin = inc_margin
                 best_z = inc_z
 
-                for cand in available_candidates:
-                    cand_totals = {
-                        c: baseline_totals[c] + cand.category_scores.scores.get(c, 0.0)
-                        for c in active_categories
-                    }
-                    cand_won, cand_margin, cand_z = _eval_totals(cand_totals)
+                if available_candidates:
+                    cand_df = pd.DataFrame([_player_to_series(c) for c in available_candidates])
+                    cand_matrix = cand_df.values + baseline_series.values  # Broadcast addition: (N, C) + (C,)
+                    cand_wins, cand_margins, cand_zs = _eval_matrix(cand_matrix)
 
-                    is_better = False
-                    if cand_won > best_won:
-                        is_better = True
-                    elif cand_won == best_won:
-                        if self.tiebreaker == "margin" and cand_margin > best_margin + self.eps:
-                            is_better = True
-                        elif self.tiebreaker == "total_value" and cand_z > best_z + self.eps:
-                            is_better = True
+                    for i, cand in enumerate(available_candidates):
+                        c_won = int(cand_wins[i])
+                        c_margin = float(cand_margins[i])
+                        c_z = float(cand_zs[i])
 
-                    if is_better:
-                        best_cand = cand
-                        best_won = cand_won
-                        best_margin = cand_margin
-                        best_z = cand_z
+                        is_better = False
+                        if c_won > best_won:
+                            is_better = True
+                        elif c_won == best_won:
+                            if self.tiebreaker == "margin" and c_margin > best_margin + self.eps:
+                                is_better = True
+                            elif self.tiebreaker == "total_value" and c_z > best_z + self.eps:
+                                is_better = True
+
+                        if is_better:
+                            best_cand = cand
+                            best_won = c_won
+                            best_margin = c_margin
+                            best_z = c_z
 
                 if best_cand.player.player_id != incumbent.player.player_id:
                     current_roster_list[k] = best_cand
@@ -189,40 +201,43 @@ class SingleSlotOptimizationStrategy(OptimizationStrategy):
             for k in range(len(current_roster_list)):
                 incumbent = current_roster_list[k]
                 others = current_roster_list[:k] + current_roster_list[k + 1:]
-                baseline_totals = _sum_stats(others)
+                baseline_series = _sum_roster_to_series(others)
 
-                incumbent_totals = {
-                    c: baseline_totals[c] + incumbent.category_scores.scores.get(c, 0.0)
-                    for c in active_categories
-                }
-                inc_won, inc_margin, inc_z = _eval_totals(incumbent_totals)
+                incumbent_series = baseline_series + _player_to_series(incumbent)
+                inc_wins_arr, inc_margins_arr, inc_z_arr = _eval_matrix(incumbent_series.values.reshape(1, -1))
+                inc_won = int(inc_wins_arr[0])
+                inc_margin = float(inc_margins_arr[0])
+                inc_z = float(inc_z_arr[0])
 
                 best_cand = None
                 best_won = inc_won
                 best_margin = inc_margin
                 best_z = inc_z
 
-                for cand in available_candidates:
-                    cand_totals = {
-                        c: baseline_totals[c] + cand.category_scores.scores.get(c, 0.0)
-                        for c in active_categories
-                    }
-                    cand_won, cand_margin, cand_z = _eval_totals(cand_totals)
+                if available_candidates:
+                    cand_df = pd.DataFrame([_player_to_series(c) for c in available_candidates])
+                    cand_matrix = cand_df.values + baseline_series.values
+                    cand_wins, cand_margins, cand_zs = _eval_matrix(cand_matrix)
 
-                    is_better = False
-                    if cand_won > best_won:
-                        is_better = True
-                    elif cand_won == best_won:
-                        if self.tiebreaker == "margin" and cand_margin > best_margin + self.eps:
-                            is_better = True
-                        elif self.tiebreaker == "total_value" and cand_z > best_z + self.eps:
-                            is_better = True
+                    for i, cand in enumerate(available_candidates):
+                        c_won = int(cand_wins[i])
+                        c_margin = float(cand_margins[i])
+                        c_z = float(cand_zs[i])
 
-                    if is_better:
-                        best_cand = cand
-                        best_won = cand_won
-                        best_margin = cand_margin
-                        best_z = cand_z
+                        is_better = False
+                        if c_won > best_won:
+                            is_better = True
+                        elif c_won == best_won:
+                            if self.tiebreaker == "margin" and c_margin > best_margin + self.eps:
+                                is_better = True
+                            elif self.tiebreaker == "total_value" and c_z > best_z + self.eps:
+                                is_better = True
+
+                        if is_better:
+                            best_cand = cand
+                            best_won = c_won
+                            best_margin = c_margin
+                            best_z = c_z
 
                 if best_cand is not None:
                     gain_won = best_won - inc_won
@@ -256,11 +271,14 @@ class SingleSlotOptimizationStrategy(OptimizationStrategy):
                     "margin_after": best_margin,
                 })
 
-        final_totals = _sum_stats(current_roster_list)
-        final_won, final_margin, final_z = _eval_totals(final_totals)
+        final_series = _sum_roster_to_series(current_roster_list)
+        final_wins_arr, final_margins_arr, final_z_arr = _eval_matrix(final_series.values.reshape(1, -1))
+        final_won = int(final_wins_arr[0])
+        final_margin = float(final_margins_arr[0])
+        final_z = float(final_z_arr[0])
 
         summary_metrics: Dict[str, float] = {
-            f"total_{cat}": round(final_totals[cat], 4) for cat in active_categories
+            f"total_{cat}": round(float(final_series[cat]), 4) for cat in active_categories
         }
         summary_metrics.update({
             "categories_won": float(final_won),
