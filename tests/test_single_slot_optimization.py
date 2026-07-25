@@ -10,6 +10,9 @@ from app.analytics.optimization.single_slot import SingleSlotOptimizationStrateg
 from app.domain.player import Player
 from app.domain.roster import Roster
 from app.domain.scoring import CategoryScores, RosterSnapshot, ScoredPlayer, ScoredPool
+from app.domain.stats import StatCategory, ZCategory
+
+
 
 
 def _create_scored_player(pid: int, name: str, scores: dict[str, float]) -> ScoredPlayer:
@@ -123,7 +126,29 @@ class TestSingleSlotOptimizationStrategy(unittest.TestCase):
         self.assertIn("categories_won", result.summary_metrics)
         self.assertIn("total_zscore", result.summary_metrics)
 
+    def test_enum_parameters(self):
+        target_thresholds = {
+            ZCategory.zPTS: 6.0,
+            ZCategory.zREB: 6.0,
+            ZCategory.zAST: 3.0,
+        }
+        strategy = SingleSlotOptimizationStrategy(
+            target_thresholds=target_thresholds,
+            punt_categories=[ZCategory.zREB],
+            mode="sequential",
+            tiebreaker="none",
+        )
+
+        result = strategy.optimize(self.candidate_pool, current_roster=self.roster_snapshot)
+
+        self.assertEqual(result.metadata["mode"], "sequential")
+        self.assertEqual(result.metadata["tiebreaker"], "none")
+        self.assertEqual(result.metadata["punt_categories"], ["zREB"])
+        self.assertEqual(result.objective_value, 2.0)
+
+
 
 if __name__ == "__main__":
     unittest.main()
+
 

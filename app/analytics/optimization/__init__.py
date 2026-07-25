@@ -8,5 +8,11 @@ from app.domain.optimization import OptimizationResult
 from app.analytics.optimization.base import OptimizationStrategy
 from app.analytics.optimization.single_slot import SingleSlotOptimizationStrategy
 
-__all__ = ["OptimizationStrategy", "SingleSlotOptimizationStrategy", "OptimizationResult"]
+__all__ = [
+    "OptimizationStrategy",
+    "SingleSlotOptimizationStrategy",
+    "OptimizationResult",
+]
+
+
 

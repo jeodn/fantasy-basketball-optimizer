@@ -10,11 +10,14 @@ or median threshold) rather than total z-score sum.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Union
 
 from app.analytics.optimization.base import OptimizationStrategy
 from app.domain.optimization import OptimizationResult
 from app.domain.scoring import RosterSnapshot, ScoredPlayer, ScoredPool
+from app.domain.stats import StatCategory, ZCategory
+
+CategoryKey = Union[str, StatCategory, ZCategory]
 
 
 class SingleSlotOptimizationStrategy(OptimizationStrategy):
@@ -27,8 +30,8 @@ class SingleSlotOptimizationStrategy(OptimizationStrategy):
 
     def __init__(
         self,
-        target_thresholds: Optional[Dict[str, float]] = None,
-        punt_categories: Optional[List[str]] = None,
+        target_thresholds: Optional[Dict[CategoryKey, float]] = None,
+        punt_categories: Optional[List[CategoryKey]] = None,
         mode: str = "sequential",
         tiebreaker: str = "margin",
         eps: float = 1e-5,
@@ -36,11 +39,11 @@ class SingleSlotOptimizationStrategy(OptimizationStrategy):
         """
         Initialize SingleSlotOptimizationStrategy.
 
-        :param target_thresholds: Dict mapping category name (e.g. 'zPTS' or 'PTS') -> target threshold o_c.
-        :param punt_categories: Categories to concede/ignore during win calculations.
+        :param target_thresholds: Dict mapping category name/Enum -> target threshold o_c.
+        :param punt_categories: Categories (str or Enum) to concede/ignore during win calculations.
         :param mode: Execution mode ('sequential' or 'simultaneous').
         :param tiebreaker: Secondary objective for ties ('margin', 'total_value', or 'none').
-        :param eps: Epsilon margin for strict win determination (totals >= threshold + eps).
+        :param eps: Epsilon margin for strict win determination (totals >= threshold - eps).
         """
         valid_modes = {"sequential", "simultaneous"}
         if mode not in valid_modes:
@@ -52,11 +55,19 @@ class SingleSlotOptimizationStrategy(OptimizationStrategy):
                 f"Invalid tiebreaker '{tiebreaker}'. Must be one of {valid_tiebreakers}"
             )
 
-        self.target_thresholds = target_thresholds or {}
-        self.punt_categories = set(punt_categories or [])
+        self.target_thresholds = {
+            (k.value if isinstance(k, (StatCategory, ZCategory)) else str(k)): float(v)
+            for k, v in (target_thresholds or {}).items()
+        }
+        self.punt_categories = {
+            (c.value if isinstance(c, (StatCategory, ZCategory)) else str(c))
+            for c in (punt_categories or [])
+        }
         self.mode = mode
         self.tiebreaker = tiebreaker
         self.eps = eps
+
+
 
     def optimize(
         self,
