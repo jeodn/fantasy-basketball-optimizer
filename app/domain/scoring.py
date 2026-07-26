@@ -46,6 +46,17 @@ class ScoredPlayer:
     player: Player
     category_scores: CategoryScores
 
+    def to_series(self, categories: Optional[List[str]] = None) -> pd.Series:
+        """Convert score dictionary to a pandas Series indexed by category names."""
+        if categories is None:
+            return pd.Series(self.category_scores.scores, dtype=float)
+        return pd.Series(
+            [self.category_scores.scores.get(c, 0.0) for c in categories],
+            index=categories,
+            dtype=float,
+        )
+
+
 
 # ---------------------------------------------------------------------------
 # Roster-level scored view
@@ -74,6 +85,13 @@ class RosterSnapshot:
             sum(sp.category_scores.total_value for sp in self.scored_players.values()), 3
         )
         return totals
+
+    def category_series(self, categories: Optional[List[str]] = None) -> pd.Series:
+        """Sum of category scores across roster players as a pandas Series."""
+        if not self.scored_players:
+            return pd.Series(0.0, index=categories or [], dtype=float)
+        return scored_players_sum_series(list(self.scored_players.values()), categories)
+
 
     def to_dict(self) -> dict:
         """
@@ -200,3 +218,26 @@ class ScoredPool:
             )
 
         return cls(scored_players=scored_players)
+
+
+# ---------------------------------------------------------------------------
+# Helper functions for vector operations
+# ---------------------------------------------------------------------------
+
+def scored_players_to_dataframe(
+    players: List[ScoredPlayer], categories: Optional[List[str]] = None
+) -> pd.DataFrame:
+    """Convert a list of ScoredPlayers into a pandas DataFrame of category scores."""
+    if not players:
+        return pd.DataFrame(columns=categories or [])
+    return pd.DataFrame([p.to_series(categories) for p in players])
+
+
+def scored_players_sum_series(
+    players: List[ScoredPlayer], categories: Optional[List[str]] = None
+) -> pd.Series:
+    """Sum category scores across a list of ScoredPlayers as a pandas Series."""
+    if not players:
+        return pd.Series(0.0, index=categories or [], dtype=float)
+    return scored_players_to_dataframe(players, categories).sum(axis=0)
+

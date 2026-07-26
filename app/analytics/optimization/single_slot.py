@@ -17,8 +17,15 @@ import numpy as np
 import pandas as pd
 
 from app.analytics.optimization.base import OptimizationStrategy
+from app.analytics.optimization.utils import eval_score_matrix
 from app.domain.optimization import OptimizationResult
-from app.domain.scoring import RosterSnapshot, ScoredPlayer, ScoredPool
+from app.domain.scoring import (
+    RosterSnapshot,
+    ScoredPlayer,
+    ScoredPool,
+    scored_players_sum_series,
+    scored_players_to_dataframe,
+)
 from app.domain.stats import StatCategory, ZCategory
 
 CategoryKey = Union[str, StatCategory, ZCategory]
@@ -104,31 +111,11 @@ class SingleSlotOptimizationStrategy(OptimizationStrategy):
         # Build category threshold numpy vector (shape: N_categories,)
         thresh_vec = np.array([self.target_thresholds.get(c, 0.0) for c in active_categories], dtype=float)
 
-        def _player_to_series(sp: ScoredPlayer) -> pd.Series:
-            return pd.Series(
-                [sp.category_scores.scores.get(c, 0.0) for c in active_categories],
-                index=active_categories,
-            )
-
-        def _sum_roster_to_series(players: List[ScoredPlayer]) -> pd.Series:
-            if not players:
-                return pd.Series(0.0, index=active_categories)
-            df = pd.DataFrame([_player_to_series(p) for p in players])
-            return df.sum(axis=0)
-
-        def _eval_matrix(matrix: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-            """
-            Vectorized category score evaluation for a 2D matrix of shape (N, C).
-            Returns (categories_won, margin_sum, total_zscore) arrays of length N.
-            """
-            wins = (matrix >= (thresh_vec - self.eps)).sum(axis=1)
-            margins = (matrix - thresh_vec).sum(axis=1)
-            total_z = matrix.sum(axis=1)
-            return wins, margins, total_z
-
         # Compute initial roster baseline
-        initial_series = _sum_roster_to_series(roster_players)
-        init_wins_arr, init_margins_arr, init_z_arr = _eval_matrix(initial_series.values.reshape(1, -1))
+        initial_series = current_roster.category_series(active_categories)
+        init_wins_arr, init_margins_arr, init_z_arr = eval_score_matrix(
+            initial_series.values.reshape(1, -1), thresh_vec, self.eps
+        )
         init_won = int(init_wins_arr[0])
         init_margin = float(init_margins_arr[0])
         init_z = float(init_z_arr[0])
@@ -140,10 +127,12 @@ class SingleSlotOptimizationStrategy(OptimizationStrategy):
             for k in range(len(current_roster_list)):
                 incumbent = current_roster_list[k]
                 others = current_roster_list[:k] + current_roster_list[k + 1:]
-                baseline_series = _sum_roster_to_series(others)
+                baseline_series = scored_players_sum_series(others, active_categories)
 
-                incumbent_series = baseline_series + _player_to_series(incumbent)
-                inc_wins_arr, inc_margins_arr, inc_z_arr = _eval_matrix(incumbent_series.values.reshape(1, -1))
+                incumbent_series = baseline_series + incumbent.to_series(active_categories)
+                inc_wins_arr, inc_margins_arr, inc_z_arr = eval_score_matrix(
+                    incumbent_series.values.reshape(1, -1), thresh_vec, self.eps
+                )
                 inc_won = int(inc_wins_arr[0])
                 inc_margin = float(inc_margins_arr[0])
                 inc_z = float(inc_z_arr[0])
@@ -154,9 +143,9 @@ class SingleSlotOptimizationStrategy(OptimizationStrategy):
                 best_z = inc_z
 
                 if available_candidates:
-                    cand_df = pd.DataFrame([_player_to_series(c) for c in available_candidates])
+                    cand_df = scored_players_to_dataframe(available_candidates, active_categories)
                     cand_matrix = cand_df.values + baseline_series.values  # Broadcast addition: (N, C) + (C,)
-                    cand_wins, cand_margins, cand_zs = _eval_matrix(cand_matrix)
+                    cand_wins, cand_margins, cand_zs = eval_score_matrix(cand_matrix, thresh_vec, self.eps)
 
                     for i, cand in enumerate(available_candidates):
                         c_won = int(cand_wins[i])
@@ -201,10 +190,12 @@ class SingleSlotOptimizationStrategy(OptimizationStrategy):
             for k in range(len(current_roster_list)):
                 incumbent = current_roster_list[k]
                 others = current_roster_list[:k] + current_roster_list[k + 1:]
-                baseline_series = _sum_roster_to_series(others)
+                baseline_series = scored_players_sum_series(others, active_categories)
 
-                incumbent_series = baseline_series + _player_to_series(incumbent)
-                inc_wins_arr, inc_margins_arr, inc_z_arr = _eval_matrix(incumbent_series.values.reshape(1, -1))
+                incumbent_series = baseline_series + incumbent.to_series(active_categories)
+                inc_wins_arr, inc_margins_arr, inc_z_arr = eval_score_matrix(
+                    incumbent_series.values.reshape(1, -1), thresh_vec, self.eps
+                )
                 inc_won = int(inc_wins_arr[0])
                 inc_margin = float(inc_margins_arr[0])
                 inc_z = float(inc_z_arr[0])
@@ -215,9 +206,10 @@ class SingleSlotOptimizationStrategy(OptimizationStrategy):
                 best_z = inc_z
 
                 if available_candidates:
-                    cand_df = pd.DataFrame([_player_to_series(c) for c in available_candidates])
+                    cand_df = scored_players_to_dataframe(available_candidates, active_categories)
                     cand_matrix = cand_df.values + baseline_series.values
-                    cand_wins, cand_margins, cand_zs = _eval_matrix(cand_matrix)
+                    cand_wins, cand_margins, cand_zs = eval_score_matrix(cand_matrix, thresh_vec, self.eps)
+
 
                     for i, cand in enumerate(available_candidates):
                         c_won = int(cand_wins[i])
@@ -271,8 +263,11 @@ class SingleSlotOptimizationStrategy(OptimizationStrategy):
                     "margin_after": best_margin,
                 })
 
-        final_series = _sum_roster_to_series(current_roster_list)
-        final_wins_arr, final_margins_arr, final_z_arr = _eval_matrix(final_series.values.reshape(1, -1))
+        final_series = scored_players_sum_series(current_roster_list, active_categories)
+        final_wins_arr, final_margins_arr, final_z_arr = eval_score_matrix(
+            final_series.values.reshape(1, -1), thresh_vec, self.eps
+        )
+
         final_won = int(final_wins_arr[0])
         final_margin = float(final_margins_arr[0])
         final_z = float(final_z_arr[0])
