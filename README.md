@@ -1,5 +1,7 @@
 # Fantasy Basketball Advisor & Optimizer
 
+Click here for a preview: https://fantasy-basketball-optimizer.streamlit.app/
+
 A modular Python framework and interactive web application for fantasy basketball team analysis, replacement player evaluation, injury-adjusted daily projections, and Head-to-Head (H2H) roster optimization.
 
 ## Features
