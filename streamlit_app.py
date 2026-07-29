@@ -316,7 +316,10 @@ def main():
                 if sp.player.name in selected_candidate_names
             }
         else:
-            cand_pool_dict = available_free_agents
+            cand_pool_dict = dict(available_free_agents)
+
+        # Ensure the candidate pool includes current team players by default
+        cand_pool_dict.update(my_snapshot.scored_players)
 
         candidate_scored_pool = ScoredPool(scored_players=cand_pool_dict)
 
