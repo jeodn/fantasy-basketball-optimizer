@@ -11,6 +11,11 @@ A modular Python framework and interactive web application for fantasy basketbal
 - **AI Matchup Assistant**: Provides context-aware strategic advice using Google Gemini models.
 - **Comprehensive Documentation Suite**: Includes dedicated documentation in `./docs/` detailing architecture, data pipeline mechanics, scoring formulas, and optimization models.
 
+## Gallery
+<img width="1918" height="1025" alt="image" src="https://github.com/user-attachments/assets/96dfd89d-653f-4a5a-a078-3b0d353fa637" />
+<img width="1918" height="1026" alt="image" src="https://github.com/user-attachments/assets/1d76f7cf-33ba-4275-bb40-59e2fcf4ae18" />
+
+
 ## Repository Structure & Architecture
 
 The codebase follows a domain-driven architecture separated inside the `app/` directory:
