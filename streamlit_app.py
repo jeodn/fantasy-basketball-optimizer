@@ -61,6 +61,44 @@ st.markdown(
 )
 
 
+@st.cache_resource
+def ensure_data_initialized():
+    """
+    If running in remote deployment mode (IS_LOCAL is false in st.secrets or env) 
+    or if data.json does not exist, run the full pipeline (pull -> rank -> roster -> evaluate).
+    Cached via @st.cache_resource so it only executes once on server startup.
+    """
+    is_local = True
+    try:
+        sec_val = None
+        # Safely attempt to read IS_LOCAL from st.secrets dict or attributes
+        if hasattr(st.secrets, "get"):
+            sec_val = st.secrets.get("IS_LOCAL")
+            if sec_val is None:
+                env_dict = st.secrets.get("env")
+                if isinstance(env_dict, dict):
+                    sec_val = env_dict.get("IS_LOCAL")
+
+        if sec_val is not None:
+            is_local = str(sec_val).lower() in ("true", "1", "yes")
+    except Exception:
+        pass
+
+    if is_local:
+        is_local = os.getenv("IS_LOCAL", "true").lower() in ("true", "1", "yes")
+
+    data_file = DATA_DIR / "data.json"
+
+    if not is_local or not data_file.exists():
+        with st.spinner("Initializing pipeline data on remote startup (pull -> rank -> roster -> evaluate)..."):
+            from app.pipeline import commands
+
+            commands.pull()
+            commands.rank()
+            commands.roster()
+            commands.evaluate()
+
+
 @st.cache_data
 def load_scored_pool_data():
     """Load player pool, apply ZScoreStrategy, and return ScoredPool and DataFrame."""
@@ -101,6 +139,9 @@ def main():
         "<div class='sub-header'>Category-Driven Head-to-Head Optimization | Daily Projections | AI Matchup Analysis</div>",
         unsafe_allow_html=True,
     )
+
+    # Initialize data pipeline on remote startup or if data is missing
+    ensure_data_initialized()
 
     # Load Data
     try:
