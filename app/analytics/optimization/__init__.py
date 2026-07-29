@@ -1,6 +1,18 @@
 """
 app/analytics/optimization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Scaffolded package — future home for portfolio theory and combinatorial
-roster optimization.
+Package for portfolio theory and combinatorial roster optimization.
 """
+
+from app.domain.optimization import OptimizationResult
+from app.analytics.optimization.base import OptimizationStrategy
+from app.analytics.optimization.single_slot import SingleSlotOptimizationStrategy
+
+__all__ = [
+    "OptimizationStrategy",
+    "SingleSlotOptimizationStrategy",
+    "OptimizationResult",
+]
+
+
+

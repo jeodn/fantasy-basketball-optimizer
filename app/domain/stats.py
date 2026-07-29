@@ -9,7 +9,43 @@ since they are properties of the stat domain, not of any service.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 from typing import List, Tuple
+
+
+class StatCategory(str, Enum):
+    """Canonical 9 fantasy basketball stat categories."""
+
+    FG_PCT = "FG%"
+    FT_PCT = "FT%"
+    THREE_PTM = "3PTM"
+    PTS = "PTS"
+    REB = "REB"
+    AST = "AST"
+    ST = "ST"
+    BLK = "BLK"
+    TO = "TO"
+
+    def to_zscore(self) -> "ZCategory":
+        return ZCategory(f"z{self.value}")
+
+
+class ZCategory(str, Enum):
+    """
+    Z-score score column keys for 9 fantasy basketball categories.
+    Ensure bigger is better; low turnovers is good ==> high points.
+    """
+    # TODO: Move to scoring.py
+    zFG_PCT = "zFG%"
+    zFT_PCT = "zFT%"
+    z3PTM = "z3PTM"
+    zPTS = "zPTS"
+    zREB = "zREB"
+    zAST = "zAST"
+    zST = "zST"
+    zBLK = "zBLK"
+    zTO = "zTO"
+
 
 
 # ---------------------------------------------------------------------------
