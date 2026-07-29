@@ -31,8 +31,11 @@ class StatCategory(str, Enum):
 
 
 class ZCategory(str, Enum):
-    """Z-score score column keys for 9 fantasy basketball categories."""
-
+    """
+    Z-score score column keys for 9 fantasy basketball categories.
+    Ensure bigger is better; low turnovers is good ==> high points.
+    """
+    # TODO: Move to scoring.py
     zFG_PCT = "zFG%"
     zFT_PCT = "zFT%"
     z3PTM = "z3PTM"
