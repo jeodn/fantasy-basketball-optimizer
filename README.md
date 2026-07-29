@@ -15,6 +15,25 @@ A modular Python framework and interactive web application for fantasy basketbal
 <img width="1918" height="1025" alt="image" src="https://github.com/user-attachments/assets/96dfd89d-653f-4a5a-a078-3b0d353fa637" />
 <img width="1918" height="1026" alt="image" src="https://github.com/user-attachments/assets/1d76f7cf-33ba-4275-bb40-59e2fcf4ae18" />
 
+## Background on Methodology
+### Head-to-Head Category Win Logic
+In standard 9-category H2H fantasy basketball, **winning a matchup means winning a majority ($\ge 5$) of categories**, 
+not maximizing your team's total z-score sum. 
+
+- **Rejected Proxy (Total Z-Score Sum)**: Maximizing $$\sum_i \text{Total Value}_i$$ often over-invests in categories 
+  you already dominate (e.g. adding +4.0 z-score in PTS when you're winning by 50) while failing to flip close categories.
+- **The Threshold Clearing Objective**: For each category $c$, the optimizer targets clearing a specific threshold $o_c$:
+  $$\text{Categories Won} = \sum_{c=1}^{9} \mathbf{1}\left[ S_c(j) \ge o_c \right]$$
+  where $S_c(j) = B_c + v_{j,c}$ is your team's stat total in category $c$ when evaluating candidate $j$.
+
+### Optimization Engine Algorithms
+1. **Single-Slot Model (Greedy Coordinate Descent)**: Evaluates replacing each player on your current roster one slot at a time, 
+   holding all other roster spots fixed as baseline $B_c$.
+2. **Sequential vs. Simultaneous**:
+   - *Sequential*: Commits each beneficial swap immediately before evaluating the next slot.
+   - *Simultaneous*: Scores all slot candidates against the initial frozen roster, then reconciles the top proposed swaps.
+3. **Tiebreakers**: When candidates yield identical category win totals, secondary objectives like **category win margin** 
+   break ties to maximize safety cushions.
 
 ## Repository Structure & Architecture
 
